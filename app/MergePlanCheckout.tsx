@@ -26,6 +26,40 @@ type Plan = {
   price: number;
 };
 
+type PaymentValues = {
+  cardNumber: string;
+  expiry: string;
+  cvc: string;
+  cardholder: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  zip: string;
+};
+
+const EMPTY_PAYMENT_VALUES: PaymentValues = {
+  cardNumber: "",
+  expiry: "",
+  cvc: "",
+  cardholder: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  zip: "",
+};
+
+function isPaymentComplete(values: PaymentValues) {
+  return (
+    values.cardNumber.replace(/\D/g, "").length === 16 &&
+    values.expiry.replace(/\D/g, "").length === 4 &&
+    /^\d{3}$/.test(values.cvc) &&
+    values.cardholder.trim().length > 0 &&
+    values.addressLine1.trim().length > 0 &&
+    values.city.trim().length > 0 &&
+    values.zip.trim().length > 0
+  );
+}
+
 const PLANS: readonly Plan[] = [
   {
     id: "pro",
@@ -68,17 +102,23 @@ function AnimatedPrice({ value }: { value: number }) {
       return;
     }
 
-    const duration = 420;
+    const duration = 680;
     const startTime = performance.now();
     let frameId = 0;
+    let renderedValue = Math.round(startValue);
 
     function updatePrice(now: number) {
       const progress = Math.min((now - startTime) / duration, 1);
-      const eased = (1 - Math.cos(Math.PI * progress)) / 2;
+      const eased = progress * progress * (3 - 2 * progress);
       const nextValue = startValue + difference * eased;
+      const roundedValue = Math.round(nextValue);
 
       displayedValue.current = nextValue;
-      visualElement.textContent = `$${Math.round(nextValue)}`;
+
+      if (roundedValue !== renderedValue) {
+        renderedValue = roundedValue;
+        visualElement.textContent = `$${roundedValue}`;
+      }
 
       if (progress < 1) {
         frameId = requestAnimationFrame(updatePrice);
@@ -135,12 +175,14 @@ function Disclosure({
   title,
   open,
   onToggle,
+  motion = "compact",
   disabled = false,
   children,
 }: {
   title: string;
   open: boolean;
   onToggle: () => void;
+  motion?: "compact" | "expanded";
   disabled?: boolean;
   children: ReactNode;
 }) {
@@ -167,7 +209,11 @@ function Disclosure({
   }
 
   return (
-    <section className={styles.disclosure} data-open={open}>
+    <section
+      className={styles.disclosure}
+      data-motion={motion}
+      data-open={open}
+    >
       <button
         className={styles.disclosureTrigger}
         type="button"
@@ -313,10 +359,20 @@ function TaxLabel({ disabled = false }: { disabled?: boolean }) {
   );
 }
 
-function PaymentFields({ disabled = false }: { disabled?: boolean }) {
-  const [cardNumber, setCardNumber] = useState("");
+function PaymentFields({
+  disabled = false,
+  onValidityChange,
+}: {
+  disabled?: boolean;
+  onValidityChange: (valid: boolean) => void;
+}) {
+  const [values, setValues] = useState(EMPTY_PAYMENT_VALUES);
   const cardNumberRef = useRef<HTMLInputElement>(null);
   const caretFrame = useRef<number | null>(null);
+
+  useEffect(() => {
+    onValidityChange(isPaymentComplete(values));
+  }, [onValidityChange, values]);
 
   useEffect(() => {
     return () => {
@@ -343,7 +399,7 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
             formatted.length,
           );
 
-    setCardNumber(formatted);
+    setValues((current) => ({ ...current, cardNumber: formatted }));
 
     if (caretFrame.current !== null) {
       cancelAnimationFrame(caretFrame.current);
@@ -373,8 +429,9 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
               maxLength={19}
               placeholder="1234 5678 9123 4656"
               aria-label="Card number"
+              required
               disabled={disabled}
-              value={cardNumber}
+              value={values.cardNumber}
               onChange={handleCardNumberChange}
             />
             <span className={styles.cardBrands} aria-hidden="true">
@@ -401,8 +458,25 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
                 type="text"
                 inputMode="numeric"
                 autoComplete="cc-exp"
+                maxLength={7}
+                pattern="[0-9]{2} / [0-9]{2}"
                 placeholder="MM / YY"
                 aria-label="Expiration date"
+                required
+                value={values.expiry}
+                onChange={(event) =>
+                  setValues((current) => {
+                    const digits = event.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 4);
+                    const expiry =
+                      digits.length > 2
+                        ? `${digits.slice(0, 2)} / ${digits.slice(2)}`
+                        : digits;
+
+                    return { ...current, expiry };
+                  })
+                }
                 disabled={disabled}
               />
             </div>
@@ -412,8 +486,18 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
                 type="text"
                 inputMode="numeric"
                 autoComplete="cc-csc"
+                pattern="[0-9]*"
                 placeholder="CVC"
                 aria-label="Security code"
+                required
+                maxLength={3}
+                value={values.cvc}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    cvc: event.target.value.replace(/\D/g, "").slice(0, 3),
+                  }))
+                }
                 disabled={disabled}
               />
               <Image
@@ -440,6 +524,14 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
             type="text"
             autoComplete="cc-name"
             placeholder="Full name on card"
+            required
+            value={values.cardholder}
+            onChange={(event) =>
+              setValues((current) => ({
+                ...current,
+                cardholder: event.target.value,
+              }))
+            }
             disabled={disabled}
           />
         </div>
@@ -467,6 +559,14 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
               autoComplete="address-line1"
               placeholder="Address line 1"
               aria-label="Address line 1"
+              required
+              value={values.addressLine1}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  addressLine1: event.target.value,
+                }))
+              }
               disabled={disabled}
             />
           </div>
@@ -477,6 +577,13 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
               autoComplete="address-line2"
               placeholder="Address line 2"
               aria-label="Address line 2"
+              value={values.addressLine2}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  addressLine2: event.target.value,
+                }))
+              }
               disabled={disabled}
             />
           </div>
@@ -488,6 +595,14 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
                 autoComplete="address-level2"
                 placeholder="City"
                 aria-label="City"
+                required
+                value={values.city}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    city: event.target.value,
+                  }))
+                }
                 disabled={disabled}
               />
             </div>
@@ -499,6 +614,14 @@ function PaymentFields({ disabled = false }: { disabled?: boolean }) {
                 autoComplete="postal-code"
                 placeholder="ZIP"
                 aria-label="ZIP code"
+                required
+                value={values.zip}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    zip: event.target.value,
+                  }))
+                }
                 disabled={disabled}
               />
             </div>
@@ -519,7 +642,10 @@ export default function MergePlanCheckout({
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("max");
   const [orderOpen, setOrderOpen] = useState(true);
   const [paymentOpen, setPaymentOpen] = useState(true);
+  const [paymentComplete, setPaymentComplete] = useState(false);
   const plan = PLANS.find((item) => item.id === selectedPlan) ?? PLANS[1];
+  const tax = plan.price * 0.2;
+  const total = plan.price + tax;
 
   return (
     <div className={styles.checkout} data-merge-plan-root>
@@ -567,6 +693,7 @@ export default function MergePlanCheckout({
       <Disclosure
         title="Order details"
         open={orderOpen}
+        motion="compact"
         disabled={disabled}
         onToggle={() => setOrderOpen((open) => !open)}
       >
@@ -580,25 +707,29 @@ export default function MergePlanCheckout({
             }
             value={plan.price}
           />
-          <MoneyRow label={<TaxLabel disabled={disabled} />} value={0} />
+          <MoneyRow label={<TaxLabel disabled={disabled} />} value={tax} />
           <MoneyRow label="Subtotal" value={plan.price} separator />
-          <MoneyRow label="Total due today" value={plan.price} separator />
+          <MoneyRow label="Total due today" value={total} separator />
         </div>
       </Disclosure>
 
       <Disclosure
         title="Payment information"
         open={paymentOpen}
+        motion="expanded"
         disabled={disabled}
         onToggle={() => setPaymentOpen((open) => !open)}
       >
-        <PaymentFields disabled={disabled} />
+        <PaymentFields
+          disabled={disabled}
+          onValidityChange={setPaymentComplete}
+        />
       </Disclosure>
 
       <button
         className={styles.subscribeButton}
         type="button"
-        disabled={disabled}
+        disabled={disabled || !paymentComplete}
         onClick={() => onSubscribe?.(selectedPlan)}
       >
         Subscribe

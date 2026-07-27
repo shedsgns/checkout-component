@@ -173,6 +173,10 @@
 }
 
 .disclosure {
+  --disclosure-open-duration: 280ms;
+  --disclosure-close-duration: 210ms;
+  --disclosure-content-delay: 42ms;
+
   width: 100%;
   margin-top: 8px;
   overflow: visible;
@@ -183,6 +187,12 @@
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.02),
     0 2px 2px 0 rgba(24, 25, 26, 0.08);
+}
+
+.disclosure[data-motion="expanded"] {
+  --disclosure-open-duration: 300ms;
+  --disclosure-close-duration: 240ms;
+  --disclosure-content-delay: 52ms;
 }
 
 .disclosureTrigger {
@@ -252,11 +262,12 @@
     calc(50% + 0.65px) / 16px 16px no-repeat;
   transform: rotate(180deg);
   transform-origin: 50% 50%;
-  transition: transform 220ms cubic-bezier(0.65, 0, 0.35, 1);
+  transition: transform 200ms cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 .chevronGlyph[data-expanded="true"] {
   transform: rotate(0deg);
+  transition-duration: 240ms;
 }
 
 .chevronGlyph[data-animating="true"] {
@@ -266,35 +277,40 @@
 .disclosureReveal {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 240ms cubic-bezier(0.4, 0, 1, 1);
+  transition:
+    grid-template-rows var(--disclosure-close-duration)
+    cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .disclosureReveal[data-open="true"] {
   grid-template-rows: 1fr;
-  transition-duration: 320ms;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: var(--disclosure-open-duration);
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .disclosureClip {
   min-height: 0;
   overflow: hidden;
+  overflow: clip;
 }
 
 .disclosureBody {
   padding-top: 20px;
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translate3d(0, -6px, 0);
   transition:
-    opacity 130ms ease,
-    transform 200ms cubic-bezier(0.4, 0, 1, 1);
+    opacity 120ms ease,
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .disclosureReveal[data-open="true"] .disclosureBody {
   opacity: 1;
-  transform: translateY(0);
-  transition-duration: 220ms, 260ms;
-  transition-delay: 40ms;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translate3d(0, 0, 0);
+  transition-duration: 180ms, 260ms;
+  transition-delay:
+    var(--disclosure-content-delay),
+    var(--disclosure-content-delay);
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .disclosureReveal[data-animating="true"] .disclosureBody {
@@ -654,8 +670,8 @@
 }
 
 .subscribeButton:disabled {
-  background: #d4d4d8;
-  color: #71717b;
+  background: rgba(24, 24, 27, 0.12);
+  color: #fff;
   cursor: not-allowed;
   transform: none;
 }
@@ -663,8 +679,6 @@
 @media (hover: hover) and (pointer: fine) {
   .planOption:hover:not([data-selected="true"]):not(:disabled) {
     --plan-dash-color: #d4d4d8;
-
-    background: rgba(255, 255, 255, 0.22);
   }
 
   .disclosureTrigger:hover:not(:disabled) {
@@ -791,8 +805,6 @@
   :global([data-theme="dark"])
     .planOption:hover:not([data-selected="true"]):not(:disabled) {
     --plan-dash-color: #3a3a3a;
-
-    background: #181818;
   }
 
   :global([data-theme="dark"]) .disclosureTrigger:hover:not(:disabled) {
