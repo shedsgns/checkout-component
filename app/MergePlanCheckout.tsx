@@ -361,9 +361,11 @@ function TaxLabel({ disabled = false }: { disabled?: boolean }) {
 
 function PaymentFields({
   disabled = false,
+  darkCardBrand = false,
   onValidityChange,
 }: {
   disabled?: boolean;
+  darkCardBrand?: boolean;
   onValidityChange: (valid: boolean) => void;
 }) {
   const [values, setValues] = useState(EMPTY_PAYMENT_VALUES);
@@ -436,9 +438,10 @@ function PaymentFields({
             />
             <span className={styles.cardBrands} aria-hidden="true">
               <Image
-                src={`${ICON_ROOT}/Mastercard.svg`}
-                width={34}
-                height={26}
+                className={darkCardBrand ? styles.mastercardDark : undefined}
+                src={`${ICON_ROOT}/${darkCardBrand ? "MastercardDark.svg" : "Mastercard.svg"}`}
+                width={darkCardBrand ? 32 : 34}
+                height={darkCardBrand ? 24 : 26}
                 alt=""
                 draggable={false}
               />
@@ -635,9 +638,13 @@ function PaymentFields({
 export default function MergePlanCheckout({
   onSubscribe,
   disabled = false,
+  showPlans = true,
+  layout = "stacked",
 }: {
   onSubscribe?: (plan: PlanId) => void;
   disabled?: boolean;
+  showPlans?: boolean;
+  layout?: "stacked" | "horizontal";
 }) {
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("max");
   const [orderOpen, setOrderOpen] = useState(true);
@@ -648,92 +655,107 @@ export default function MergePlanCheckout({
   const total = plan.price + tax;
 
   return (
-    <div className={styles.checkout} data-merge-plan-root>
-      <div className={styles.planInfo}>
-        <h1 className={styles.title}>{plan.name}</h1>
-        <div className={styles.planOptions} role="radiogroup" aria-label="Choose plan">
-          {PLANS.map((option) => {
-            const selected = option.id === selectedPlan;
-            return (
-              <button
-                className={styles.planOption}
-                data-selected={selected}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                disabled={disabled}
-                onClick={() => setSelectedPlan(option.id)}
-                key={option.id}
-              >
-                <svg
-                  className={styles.planOutline}
-                  aria-hidden="true"
-                  focusable="false"
-                  width="100%"
-                  height="100%"
+    <div
+      className={styles.checkout}
+      data-layout={layout}
+      data-merge-plan-root
+    >
+      {showPlans ? (
+        <div className={styles.planInfo}>
+          <h1 className={styles.title}>{plan.name}</h1>
+          <div
+            className={styles.planOptions}
+            role="radiogroup"
+            aria-label="Choose plan"
+          >
+            {PLANS.map((option) => {
+              const selected = option.id === selectedPlan;
+              return (
+                <button
+                  className={styles.planOption}
+                  data-selected={selected}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={disabled}
+                  onClick={() => setSelectedPlan(option.id)}
+                  key={option.id}
                 >
-                  <rect
-                    x="0.5"
-                    y="0.5"
-                    width="calc(100% - 1px)"
-                    height="calc(100% - 1px)"
-                    rx="11.5"
-                  />
-                </svg>
-                <span className={styles.planUsage}>{option.usage}</span>
-                <span className={styles.planPrice}>
-                  US ${option.price.toFixed(2)}/month + tax
-                </span>
-              </button>
-            );
-          })}
+                  <svg
+                    className={styles.planOutline}
+                    aria-hidden="true"
+                    focusable="false"
+                    width="100%"
+                    height="100%"
+                  >
+                    <rect
+                      x="0.5"
+                      y="0.5"
+                      width="calc(100% - 1px)"
+                      height="calc(100% - 1px)"
+                      rx="11.5"
+                    />
+                  </svg>
+                  <span className={styles.planUsage}>{option.usage}</span>
+                  <span className={styles.planPrice}>
+                    US ${option.price.toFixed(2)}/month + tax
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className={styles.detailsLayout}>
+        <Disclosure
+          title="Order details"
+          open={orderOpen}
+          motion="compact"
+          disabled={disabled}
+          onToggle={() => setOrderOpen((open) => !open)}
+        >
+          <div className={styles.orderBody}>
+            <MoneyRow
+              label={
+                <>
+                  <span>{plan.name}</span>
+                  <span>{plan.usage}</span>
+                </>
+              }
+              value={plan.price}
+            />
+            <MoneyRow label={<TaxLabel disabled={disabled} />} value={tax} />
+            <MoneyRow label="Subtotal" value={plan.price} separator />
+            <MoneyRow label="Total due today" value={total} separator />
+          </div>
+        </Disclosure>
+
+        <div className={styles.paymentColumn}>
+          <Disclosure
+            title="Payment information"
+            open={paymentOpen}
+            motion="expanded"
+            disabled={disabled}
+            onToggle={() => setPaymentOpen((open) => !open)}
+          >
+            <PaymentFields
+              darkCardBrand={layout === "horizontal"}
+              disabled={disabled}
+              onValidityChange={setPaymentComplete}
+            />
+          </Disclosure>
+
+          <button
+            className={styles.subscribeButton}
+            type="button"
+            disabled={disabled || !paymentComplete}
+            onClick={() => onSubscribe?.(selectedPlan)}
+          >
+            Subscribe
+          </button>
         </div>
       </div>
-
-      <Disclosure
-        title="Order details"
-        open={orderOpen}
-        motion="compact"
-        disabled={disabled}
-        onToggle={() => setOrderOpen((open) => !open)}
-      >
-        <div className={styles.orderBody}>
-          <MoneyRow
-            label={
-              <>
-                <span>{plan.name}</span>
-                <span>{plan.usage}</span>
-              </>
-            }
-            value={plan.price}
-          />
-          <MoneyRow label={<TaxLabel disabled={disabled} />} value={tax} />
-          <MoneyRow label="Subtotal" value={plan.price} separator />
-          <MoneyRow label="Total due today" value={total} separator />
-        </div>
-      </Disclosure>
-
-      <Disclosure
-        title="Payment information"
-        open={paymentOpen}
-        motion="expanded"
-        disabled={disabled}
-        onToggle={() => setPaymentOpen((open) => !open)}
-      >
-        <PaymentFields
-          disabled={disabled}
-          onValidityChange={setPaymentComplete}
-        />
-      </Disclosure>
-
-      <button
-        className={styles.subscribeButton}
-        type="button"
-        disabled={disabled || !paymentComplete}
-        onClick={() => onSubscribe?.(selectedPlan)}
-      >
-        Subscribe
-      </button>
     </div>
   );
 }

@@ -5,6 +5,7 @@ A polished checkout interaction for choosing a Merge Max plan and entering payme
 ## Highlights
 
 - Two plan variants with smoothly animated pricing
+- A focused dark horizontal checkout variant
 - Expandable order and payment sections
 - Automatic card-number formatting
 - Accessible keyboard, focus, pressed, and disabled states
@@ -20,6 +21,9 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+The dark horizontal variant is available at
+[http://localhost:3000/dark](http://localhost:3000/dark).
 
 ## Component
 
